@@ -1,6 +1,8 @@
 # Gameboy Zero RetroPie status overlays
 This repository contains a script to display lovely slightly-transparent overlays on top of your RetroPie games and emulationstation menus
 
+This is a fork created for the TinkerBoy 3.0.1 Contoller board with Li-Ion battery soldered to the BATT+ pin.
+
 ## What can it do?
 - adjust to the current resolution
 - gracefully shut down the Pi after 60s from when voltage goes below 3.2V
@@ -15,9 +17,9 @@ This repository contains a script to display lovely slightly-transparent overlay
 ## What do I need to get it running?
 - [pngview](https://github.com/AndrewFromMelbourne/raspidmx/tree/master/pngview) from AndrewFromMelbourne
 - [material-design-icons](https://github.com/google/material-design-icons/archive/master.zip) from Google
-- Adafruit ADS1015 with Vbat on A0 (or alternative)
+- Tinkerboy Controller 3.0.1 https://www.tinkerboy.xyz/getting-started-guide-for-tinkerboy-controller-v3-0/
 - a symbolic link to *overlay\_icons/ic\_battery\_alert\_red\_white\_36dp.png* under *material\_design\_icons\_master/device/drawable-mdpi/*
-- an entry in crontab to start this on boot
+- an entry in /etc/rc.local
 - check and adjust paths in the script header
 - some battery readings calibration - check logs
 - some patience
