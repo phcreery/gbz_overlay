@@ -11,7 +11,7 @@
 # - code comments. someday...
 
 import time
-import Adafruit_ADS1x15
+#import Adafruit_ADS1x15
 import subprocess
 import os
 import re
@@ -22,10 +22,18 @@ from statistics import median
 from collections import deque
 from enum import Enum
 
+import serial
+
+batteryMultiplier=1023.0
+VCC =3.95
+refreshrate=30
+
+
 pngview_path="/usr/local/bin/pngview"
+#pngview_path=""
 pngview_call=[pngview_path, "-d", "0", "-b", "0x0000", "-n", "-l", "15000", "-y", "0", "-x"]
 
-iconpath="/home/pi/src/material-design-icons-master/device/drawable-mdpi/"
+iconpath="/home/pi/myfiles/gbz_overlay/material-design-icons-master/device/drawable-mdpi/"
 iconpath2 = os.path.dirname(os.path.realpath(__file__)) + "/overlay_icons/"
 logfile = os.path.dirname(os.path.realpath(__file__)) + "/overlay.log"
 dpi=36
@@ -80,7 +88,7 @@ class InterfaceState(Enum):
 # 3.2V => will die in 10 mins under load, shut down
 # 3.3V => warning icon?
 
-adc = Adafruit_ADS1x15.ADS1015()
+#adc = Adafruit_ADS1x15.ADS1015()
 # Choose a gain of 1 for reading voltages from 0 to 4.09V.
 # Or pick a different gain to change the range of voltages that are read:
 #  - 2/3 = +/-6.144V
@@ -94,13 +102,13 @@ adc = Adafruit_ADS1x15.ADS1015()
 def translate_bat(voltage):
   # Figure out how 'wide' each range is
   state = voltage <= vmax["discharging"] and "discharging" or "charging"
-
+  #print(state)
   leftSpan = vmax[state] - vmin[state]
   rightSpan = len(icons[state]) - 1
 
   # Convert the left range into a 0-1 range (float)
   valueScaled = float(voltage - vmin[state]) / float(leftSpan)
-
+  #print(valueScaled,rightSpan, int(round(valueScaled * rightSpan)))
   # Convert the 0-1 range into a value in the right range.
   return icons[state][int(round(valueScaled * rightSpan))]
 
@@ -123,7 +131,7 @@ def wifi():
         # ifup but not connected to any network
         new_wifi_state = InterfaceState.ENABLED
         # else - must be ifdown
-      
+
   except IOError:
     pass
 
@@ -193,8 +201,19 @@ def environment():
 
 def battery():
   global battery_level, overlay_processes, battery_history
-  value = adc.read_adc(0, gain=2/3)
-  value_v = value * 0.003
+  value="0"
+  #print("Reading battery...")
+  #ser.flushinput()
+  ser.reset_input_buffer()
+  while int(value) < 15:
+    ser.write('9'.encode())
+    time.sleep(.3)
+    value = (ser.readline())
+    #value = (ser.readline())
+    #print(value)
+  #value = adc.read_adc(0, gain=2/3)
+  value_v = float(value) * (VCC / batteryMultiplier)
+  #print(value,value_v)
 
   battery_history.append(value_v)
   try:
@@ -203,11 +222,11 @@ def battery():
     level_icon="unknown"
 
 
-  if value_v <= 3.2:
-    my_logger.warn("Battery voltage at or below 3.2V. Initiating shutdown within 1 minute")
+  #if value_v <= 3.2:
+    #my_logger.warn("Battery voltage at or below 3.2V. Initiating shutdown within 1 minute")
 
-    subprocess.Popen(pngview_call + [str(int(resolution[0]) / 2 - 64), "-y", str(int(resolution[1]) / 2 - 64), icon_battery_critical_shutdown])
-    os.system("sleep 60 && sudo poweroff &")
+    #subprocess.Popen(pngview_call + [str(int(resolution[0]) / 2 - 64), "-y", str(int(resolution[1]) / 2 - 64), icon_battery_critical_shutdown])
+    #os.system("sleep 60 && sudo poweroff &")
 
   if level_icon != battery_level:
     if "bat" in overlay_processes:
@@ -235,20 +254,39 @@ my_logger.addHandler(console)
 
 # Get Framebuffer resolution
 resolution=re.search("(\d{3,}x\d{3,})", subprocess.check_output(fbfile.split()).decode().rstrip()).group().split('x')
-my_logger.info(resolution)
+#my_logger.info(resolution)
+
+port = 0
+#print("Connecting...")
+while port == 0:
+    for x in range(0, 3):
+        try:
+            ser = serial.Serial('/dev/ttyACM' + str(x), 115200)
+        except serial.SerialException:
+            if debug == 1:
+                print('Serial Port ACM' + str(x) + ' Not Found')
+            time.sleep(1)
+        else:
+            port = 1
+            break
+
+
+
+
+
 
 while True:
   (battery_level, value_v) = battery()
   wifi_state = wifi()
   bt_state = bluetooth()
   env = environment()
-  my_logger.info("%s,median: %.2f, %s,icon: %s,wifi: %s,bt: %s, throttle: %#0x" % (
-    datetime.now(),
-    value_v,
-    list(battery_history),
-    battery_level,
-    wifi_state.name,
-    bt_state.name,
-    env
-  ))
-  time.sleep(20)
+  #my_logger.info("%s,median: %.2f, %s,icon: %s,wifi: %s,bt: %s, throttle: %#0x" % (
+  #  datetime.now(),
+  #  value_v,
+  #  list(battery_history),
+  #  battery_level,
+  #  wifi_state.name,
+  #  bt_state.name,
+  #  env
+  #))
+  time.sleep(refreshrate)
